@@ -1,0 +1,70 @@
+services:
+  
+  # 1. Tu API de Express (Simple)
+  transaction:
+    build: . # Construye usando el Dockerfile de esta carpeta
+    container_name: express_api
+    ports:
+      - "3002:3002"
+    environment:
+      # Pasa todas las variables del .env
+      DB_HOST: ${DB_HOST}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      WALLET_SERVICE_URL: ${WALLET_SERVICE_URL}
+    depends_on:
+      - mariadb
+      - redis
+      - rabbitmq
+    networks:
+      - microservicios-net
+
+  # 2. Base de Datos MariaDB
+  mariadb:
+    image: mariadb:10.6 
+    container_name: billetera_mariadb
+    ports:
+      - "3307:3306" # Usamos el puerto 3307 de tu PC
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MARIADB_DATABASE: ${DB_NAME}
+    volumes:
+      - mariadb_data:/var/lib/mysql 
+    networks:
+      - microservicios-net
+
+  # 3. Caché de Idempotencia Redis
+  redis:
+    image: redis:6-alpine 
+    container_name: billetera_redis
+    ports:
+      - "6379:6379" 
+    networks:
+      - microservicios-net
+
+  # 4. Broker de Mensajes RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: billetera_rabbitmq
+    ports:
+      - "5672:5672"  
+      - "15672:15672" 
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+    - microservicios-net
+    
+
+volumes:
+  mariadb_data:
+
+# Le decimos a Docker que "microservicios-net"
+# es una red externa que ya existe
+networks:
+  microservicios-net:
+    external: true
