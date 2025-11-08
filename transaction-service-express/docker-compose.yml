@@ -1,5 +1,4 @@
 services:
-  
   # 1. Tu API de Express (Simple)
   transaction:
     build: . # Construye usando el Dockerfile de esta carpeta
@@ -25,24 +24,24 @@ services:
 
   # 2. Base de Datos MariaDB
   mariadb:
-    image: mariadb:10.6 
+    image: mariadb:10.6
     container_name: billetera_mariadb
     ports:
-      - "3307:3306" # Usamos el puerto 3307 de tu PC
+      - "3308:3306" # Usamos el puerto 3308 de tu PC
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_PASSWORD}
       MARIADB_DATABASE: ${DB_NAME}
     volumes:
-      - mariadb_data:/var/lib/mysql 
+      - mariadb_data:/var/lib/mysql
     networks:
       - microservicios-net
 
   # 3. Caché de Idempotencia Redis
   redis:
-    image: redis:6-alpine 
+    image: redis:6-alpine
     container_name: billetera_redis
     ports:
-      - "6379:6379" 
+      - "6379:6379"
     networks:
       - microservicios-net
 
@@ -51,14 +50,13 @@ services:
     image: rabbitmq:3.13-management-alpine
     container_name: billetera_rabbitmq
     ports:
-      - "5672:5672"  
-      - "15672:15672" 
+      - "5672:5672"
+      - "15672:15672"
     environment:
       - RABBITMQ_DEFAULT_USER=guest
       - RABBITMQ_DEFAULT_PASS=guest
     networks:
-    - microservicios-net
-    
+      - microservicios-net
 
 volumes:
   mariadb_data:
