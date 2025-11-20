@@ -4,7 +4,7 @@
 const dbPool = require("../config/db"); // Importa la BD
 const redisClient = require("../config/redis"); // Importa Redis
 const amqp = require("amqplib");
-const http = require("axios"); // Asegúrate de que axios esté instalado (npm install axios)
+const http = require("axios"); 
 
 // Leemos las URLs de los .env
 const rmqUrl = process.env.RABBITMQ_URL;
@@ -14,53 +14,60 @@ const walletServiceUrl = process.env.WALLET_SERVICE_URL;
 
 // --- 2. Lógica de CREAR Transacción ---
 exports.createTransaction = async (req, res) => {
-  const { idempotencyKey, sender_wallet, receiver_wallet, amount, currency } =
-    req.body;
+  const { idempotencyKey, sender_wallet, receiver_wallet, amount, currency } = req.body;
 
   // --- A. Verificar Idempotencia (RF-03) ---
+  // Protegemos la llamada a Redis por si el servicio está apagado
   const key = `idempotency:${idempotencyKey}`;
   let isNewRequest = false;
+
   try {
-    const result = await redisClient.set(key, "processing", "EX", 3600, "NX");
-    if (result !== "OK") {
-      const cachedResult = await redisClient.get(key);
-      if (cachedResult !== "processing") {
-        return res.status(200).send(JSON.parse(cachedResult));
-      }
-      return res.status(409).send({ message: "Transacción en proceso." });
+    // Solo intentamos usar Redis si el cliente existe y está listo
+    if (redisClient && redisClient.status === 'ready') {
+        const result = await redisClient.set(key, "processing", "EX", 3600, "NX");
+        if (result !== "OK") {
+            const cachedResult = await redisClient.get(key);
+            if (cachedResult !== "processing") {
+                return res.status(200).send(JSON.parse(cachedResult));
+            }
+            return res.status(409).send({ message: "Transacción en proceso." });
+        }
     }
     isNewRequest = true;
   } catch (err) {
-    console.error("Error de Redis:", err);
-    return res.status(500).send({ message: "Error interno (Redis)" });
+    console.warn("⚠️ Redis no disponible o error de conexión. Continuando sin check de idempotencia.", err.message);
+    // No bloqueamos la transacción, permitimos que continúe
   }
 
   // --- DEFINICIÓN DE IDs DE PASO (SAGA) ---
   // Generamos IDs únicos para cada paso que le pediremos al Wallet Service
-  const debitStepId = `${idempotencyKey}-debit`; // <-- CAMBIO AQUÍ
-  const creditStepId = `${idempotencyKey}-credit`; // <-- CAMBIO AQUÍ
+  const debitStepId = `${idempotencyKey}-debit`; 
+  const creditStepId = `${idempotencyKey}-credit`;
 
   let dbConnection;
   try {
-    // --- B. Lógica de Wallet Service (EL FLUJO RIESGOSO QUE PEDISTE) ---
+    // --- B. Lógica de Wallet Service (EL FLUJO RIESGOSO) ---
 
     // 1. Intentar debitar al emisor
     try {
-      console.log("Llamando a Wallet Service (DEBIT)...");
+      console.log(`[SAGA] Iniciando DEBITO a wallet ${sender_wallet}...`);
       await http.post(`${walletServiceUrl}/api/v1/wallets/debit`, {
         walletId: sender_wallet,
         amount: amount,
-        externalTransactionId: debitStepId, // Usamos la idempotencyKey como ID externo
+        currency: currency, // <--- ¡IMPORTANTE: Agregado para pasar validación!
+        externalTransactionId: debitStepId, 
       });
 
-      console.log("Wallet Service: Débito exitoso.");
+      console.log("[SAGA] Wallet Service: Débito exitoso.");
     } catch (debitError) {
       // Si el débito falla (fondos insuficientes, etc.)
       console.error(
         "Wallet Service rechazó el débito:",
         debitError.response?.data || debitError.message
       );
-      if (isNewRequest) await redisClient.del(key);
+      // Limpiamos Redis si falló
+      try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch(e){}
+      
       return res
         .status(debitError.response?.status || 400)
         .send(
@@ -72,13 +79,14 @@ exports.createTransaction = async (req, res) => {
 
     // 2. Intentar acreditar al receptor
     try {
-      console.log("Llamando a Wallet Service (CREDIT)...");
+      console.log(`[SAGA] Iniciando CREDITO a wallet ${receiver_wallet}...`);
       await http.post(`${walletServiceUrl}/api/v1/wallets/credit`, {
         walletId: receiver_wallet,
         amount: amount,
+        currency: currency, // <--- ¡IMPORTANTE: Agregado!
         externalTransactionId: creditStepId,
       });
-      console.log("Wallet Service: Crédito exitoso.");
+      console.log("[SAGA] Wallet Service: Crédito exitoso.");
     } catch (creditError) {
       // !!! PELIGRO !!!
       // El débito fue exitoso, pero el crédito falló.
@@ -88,15 +96,15 @@ exports.createTransaction = async (req, res) => {
       );
 
       // Intentamos hacer un "rollback" manual llamando a /credit en el emisor
-      // Esto es una "transacción de compensación"
-      console.log("Intentando revertir el débito...");
+      console.log("[SAGA] Intentando revertir el débito (Compensación)...");
       try {
         await http.post(`${walletServiceUrl}/api/v1/wallets/credit`, {
           walletId: sender_wallet, // El emisor original
           amount: amount, // El mismo monto
+          currency: currency, // <--- ¡IMPORTANTE: Agregado para el rollback!
           externalTransactionId: `rollback-${idempotencyKey}`,
         });
-        console.log("Débito revertido (compensado).");
+        console.log("[SAGA] Débito revertido (compensado).");
       } catch (rollbackError) {
         console.error(
           "¡¡¡FALLO CRÍTICO IRRECUPERABLE!!! El débito se hizo, el crédito falló y la compensación TAMBIÉN falló."
@@ -104,7 +112,8 @@ exports.createTransaction = async (req, res) => {
         // Aquí se debe alertar a un administrador
       }
 
-      if (isNewRequest) await redisClient.del(key);
+      try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch(e){}
+
       return res
         .status(creditError.response?.status || 500)
         .send(
@@ -123,7 +132,7 @@ exports.createTransaction = async (req, res) => {
 
     const [txResult] = await dbConnection.execute(
       "INSERT INTO Transaction (sender_wallet, receiver_wallet, amount, currency, status) VALUES (?, ?, ?, ?, ?)",
-      [sender_wallet, receiver_wallet, amount, currency, "processing"]
+      [sender_wallet, receiver_wallet, amount, currency, "completed"] // Ya pasó por Wallet Service, así que es completed
     );
     const transactionId = txResult.insertId;
 
@@ -137,28 +146,35 @@ exports.createTransaction = async (req, res) => {
       [transactionId, receiver_wallet, amount, "credit"]
     );
 
+    // No necesitamos hacer UPDATE status porque ya lo insertamos como 'completed'
+    // Pero si mantienes el flujo anterior de insert 'processing' -> update 'completed', descomenta esto:
+    /*
     await dbConnection.execute(
       "UPDATE Transaction SET status = ? WHERE Transaction_id = ?",
       ["completed", transactionId]
     );
+    */
 
     await dbConnection.commit();
     console.log("Ledger local guardado.");
 
     // --- D. Notificar a History Service (RF-05 y RNF-03) ---
+    // Protegemos RabbitMQ por si el servicio está apagado
     try {
-      const rmqConn = await amqp.connect(rmqUrl);
-      const channel = await rmqConn.createChannel();
-      await channel.assertQueue(rmqQueue, { durable: true });
-      const msg = { transaction_id: transactionId, status: "completed" };
-      channel.sendToQueue(rmqQueue, Buffer.from(JSON.stringify(msg)), {
-        persistent: true,
-      });
-      await channel.close();
-      await rmqConn.close();
+      if (rmqUrl) {
+          const rmqConn = await amqp.connect(rmqUrl);
+          const channel = await rmqConn.createChannel();
+          await channel.assertQueue(rmqQueue, { durable: true });
+          const msg = { transaction_id: transactionId, status: "completed" };
+          channel.sendToQueue(rmqQueue, Buffer.from(JSON.stringify(msg)), {
+            persistent: true,
+          });
+          await channel.close();
+          await rmqConn.close();
+      }
     } catch (rmqErr) {
-      console.error(
-        "Fallo al notificar a RabbitMQ (la transacción SÍ fue exitosa):",
+      console.warn(
+        "Fallo al notificar a RabbitMQ (la transacción SÍ fue exitosa en BD):",
         rmqErr.message
       );
     }
@@ -168,16 +184,24 @@ exports.createTransaction = async (req, res) => {
       transaction_id: transactionId,
       status: "completed",
       amount,
+      currency,
       sender_wallet,
       receiver_wallet,
     };
-    await redisClient.set(key, JSON.stringify(finalResult), "EX", 86400);
+
+    try {
+        if (redisClient && redisClient.status === 'ready') {
+            await redisClient.set(key, JSON.stringify(finalResult), "EX", 86400);
+        }
+    } catch(e) { console.warn("No se pudo actualizar caché Redis"); }
 
     // --- F. Responder al Cliente ---
     res.status(201).send(finalResult);
+
   } catch (error) {
     if (dbConnection) await dbConnection.rollback();
-    if (isNewRequest) await redisClient.del(key);
+    try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch(e){}
+    
     console.error("Error en la transacción:", error.message);
     res
       .status(500)
@@ -266,9 +290,9 @@ exports.reverseTransaction = async (req, res) => {
         });
     }
 
-    // Esta lógica de reversión está actuando sobre TU ledger local.
-    // Faltaría llamar a /debit y /credit del Wallet Service para la reversión.
-    // Pero por ahora, actualiza el ledger local como en la prueba anterior.
+    // OJO: Aquí deberías llamar al Wallet Service para hacer la reversión real del dinero
+    // (Llamar a credit para el sender original y debit para el receiver original)
+    // Por simplicidad en este ejemplo, solo estamos actualizando la BD local.
 
     await dbConnection.beginTransaction();
 
