@@ -4,7 +4,7 @@
 const dbPool = require("../config/db"); // Importa la BD
 const redisClient = require("../config/redis"); // Importa Redis
 const amqp = require("amqplib");
-const http = require("axios"); 
+const http = require("axios");
 
 // Leemos las URLs de los .env
 const rmqUrl = process.env.RABBITMQ_URL;
@@ -21,17 +21,38 @@ exports.createTransaction = async (req, res) => {
   const key = `idempotency:${idempotencyKey}`;
   let isNewRequest = false;
 
+  // 1. CAPTURAR: Tomas el token que te envió el Frontend
+  // Express guarda los headers en req.headers
+  const tokenDelFront = req.headers.authorization;
+
+  // Validación básica
+  if (!tokenDelFront) {
+    return res.status(401).json({ error: "No tienes permiso (Falta Token)" });
+  }
+
+  console.log("Token recibido, propagando al servicio de Usuarios...");
+
+  // 2. PREPARAR: Configuras la llamada al Microservicio de Usuarios
+  // Aquí es donde "pegas" el token para que el otro servicio crea que eres el usuario
+  const configParaUserService = {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': tokenDelFront, // <--- AQUÍ ESTÁ LA CLAVE
+    }
+  };
+
   try {
+
     // Solo intentamos usar Redis si el cliente existe y está listo
     if (redisClient && redisClient.status === 'ready') {
-        const result = await redisClient.set(key, "processing", "EX", 3600, "NX");
-        if (result !== "OK") {
-            const cachedResult = await redisClient.get(key);
-            if (cachedResult !== "processing") {
-                return res.status(200).send(JSON.parse(cachedResult));
-            }
-            return res.status(409).send({ message: "Transacción en proceso." });
+      const result = await redisClient.set(key, "processing", "EX", 3600, "NX");
+      if (result !== "OK") {
+        const cachedResult = await redisClient.get(key);
+        if (cachedResult !== "processing") {
+          return res.status(200).send(JSON.parse(cachedResult));
         }
+        return res.status(409).send({ message: "Transacción en proceso." });
+      }
     }
     isNewRequest = true;
   } catch (err) {
@@ -41,7 +62,7 @@ exports.createTransaction = async (req, res) => {
 
   // --- DEFINICIÓN DE IDs DE PASO (SAGA) ---
   // Generamos IDs únicos para cada paso que le pediremos al Wallet Service
-  const debitStepId = `${idempotencyKey}-debit`; 
+  const debitStepId = `${idempotencyKey}-debit`;
   const creditStepId = `${idempotencyKey}-credit`;
 
   let dbConnection;
@@ -55,8 +76,11 @@ exports.createTransaction = async (req, res) => {
         walletId: sender_wallet,
         amount: amount,
         currency: currency, // <--- ¡IMPORTANTE: Agregado para pasar validación!
-        externalTransactionId: debitStepId, 
-      });
+        externalTransactionId: debitStepId,
+        counterpartyId: receiver_wallet,
+      },
+        configParaUserService // <--- ¡IMPORTANTE! Enviamos el token aquí
+      );
 
       console.log("[SAGA] Wallet Service: Débito exitoso.");
     } catch (debitError) {
@@ -66,8 +90,8 @@ exports.createTransaction = async (req, res) => {
         debitError.response?.data || debitError.message
       );
       // Limpiamos Redis si falló
-      try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch(e){}
-      
+      try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch (e) { }
+
       return res
         .status(debitError.response?.status || 400)
         .send(
@@ -85,7 +109,10 @@ exports.createTransaction = async (req, res) => {
         amount: amount,
         currency: currency, // <--- ¡IMPORTANTE: Agregado!
         externalTransactionId: creditStepId,
-      });
+        counterpartyId: sender_wallet,
+      },
+        configParaUserService // <--- ¡IMPORTANTE! Enviamos el token aquí
+      );
       console.log("[SAGA] Wallet Service: Crédito exitoso.");
     } catch (creditError) {
       // !!! PELIGRO !!!
@@ -112,7 +139,7 @@ exports.createTransaction = async (req, res) => {
         // Aquí se debe alertar a un administrador
       }
 
-      try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch(e){}
+      try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch (e) { }
 
       return res
         .status(creditError.response?.status || 500)
@@ -162,15 +189,15 @@ exports.createTransaction = async (req, res) => {
     // Protegemos RabbitMQ por si el servicio está apagado
     try {
       if (rmqUrl) {
-          const rmqConn = await amqp.connect(rmqUrl);
-          const channel = await rmqConn.createChannel();
-          await channel.assertQueue(rmqQueue, { durable: true });
-          const msg = { transaction_id: transactionId, status: "completed" };
-          channel.sendToQueue(rmqQueue, Buffer.from(JSON.stringify(msg)), {
-            persistent: true,
-          });
-          await channel.close();
-          await rmqConn.close();
+        const rmqConn = await amqp.connect(rmqUrl);
+        const channel = await rmqConn.createChannel();
+        await channel.assertQueue(rmqQueue, { durable: true });
+        const msg = { transaction_id: transactionId, status: "completed" };
+        channel.sendToQueue(rmqQueue, Buffer.from(JSON.stringify(msg)), {
+          persistent: true,
+        });
+        await channel.close();
+        await rmqConn.close();
       }
     } catch (rmqErr) {
       console.warn(
@@ -190,18 +217,18 @@ exports.createTransaction = async (req, res) => {
     };
 
     try {
-        if (redisClient && redisClient.status === 'ready') {
-            await redisClient.set(key, JSON.stringify(finalResult), "EX", 86400);
-        }
-    } catch(e) { console.warn("No se pudo actualizar caché Redis"); }
+      if (redisClient && redisClient.status === 'ready') {
+        await redisClient.set(key, JSON.stringify(finalResult), "EX", 86400);
+      }
+    } catch (e) { console.warn("No se pudo actualizar caché Redis"); }
 
     // --- F. Responder al Cliente ---
     res.status(201).send(finalResult);
 
   } catch (error) {
     if (dbConnection) await dbConnection.rollback();
-    try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch(e){}
-    
+    try { if (isNewRequest && redisClient && redisClient.status === 'ready') await redisClient.del(key); } catch (e) { }
+
     console.error("Error en la transacción:", error.message);
     res
       .status(500)
