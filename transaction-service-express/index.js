@@ -4,9 +4,11 @@
 require('dotenv').config();
 
 const express = require('express');
+const cors = require('cors');
 
 // --- 1. Configuración del Servidor ---
 const app = express();
+app.use(cors());
 app.use(express.json()); // Middleware para entender JSON
 
 // --- 2. Cargar las Rutas ---
