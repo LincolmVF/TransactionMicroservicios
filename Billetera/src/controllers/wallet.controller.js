@@ -126,8 +126,7 @@ const creditWallet = async (req, res) => {
     !numericWalletId ||
     !numericAmount ||
     !externalTransactionId ||
-    !counterpartyId ||
-    numericAmount <= 0
+        numericAmount <= 0
   ) {
     return res.status(400).json({
       error:
@@ -141,7 +140,7 @@ const creditWallet = async (req, res) => {
       numericWalletId,
       numericAmount,
       externalTransactionId,
-      counterpartyId,
+      counterpartyId || null,
       currency
     );
     res.status(200).json(updatedWallet);
@@ -174,7 +173,6 @@ const debitWallet = async (req, res) => {
     !numericWalletId ||
     !numericAmount ||
     !externalTransactionId ||
-    !counterpartyId ||
     numericAmount <= 0
   ) {
     return res.status(400).json({
@@ -189,7 +187,7 @@ const debitWallet = async (req, res) => {
       numericWalletId,
       numericAmount,
       externalTransactionId,
-      counterpartyId,
+      counterpartyId || null,
       currency
     );
     res.status(200).json(updatedWallet);
