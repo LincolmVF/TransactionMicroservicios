@@ -3,7 +3,7 @@ const jwt = require("jsonwebtoken"); // 1. Importamos la librería
 
 // --- CONFIGURACIÓN ---
 const USER_SERVICE_URL = process.env.USER_SERVICE_URL || "https://userservicesanti.onrender.com/users";
-const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL || "https://billetera-production.up.railway.app/api/v1/wallets";
+const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL2 || "https://billetera-production.up.railway.app/api/v1/wallets";
 
 // TU SECRETO (Asegúrate que sea EL MISMO que usan los otros servicios para verificar)
 const JWT_SECRET = process.env.JWT_SECRET || "08af2447a30c9c090b3595e6b45cead32eb587dcb1892aae31f073dcb31bce95";
