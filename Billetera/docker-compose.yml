@@ -1,0 +1,63 @@
+# Versión de la sintaxis de Docker Compose
+version: "3.8"
+
+# --- Definición de nuestros contenedores (Servicios) ---
+services:
+  # 1. El Servicio de Base de Datos
+  db:
+    image: mariadb:latest
+    container_name: wallet-db-compose
+    restart: always
+    environment:
+      # Pasamos las variables de entorno
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+    ports:
+      # Exponemos el puerto solo para DBeaver (opcional)
+      - "3309:3306"
+    volumes:
+      # Esto hace que los datos de la DB se guarden en tu PC
+      # y sobrevivan si borras el contenedor.
+      - wallet-data:/var/lib/mysql
+    networks:
+      # Lo conectamos a nuestra red interna
+      - microservicios-net
+
+  # 2. El Servicio de tu API (Wallet Service)
+  api:
+    container_name: wallet-api-compose
+    # En lugar de usar una imagen, le decimos que "construya"
+    # usando el Dockerfile de esta carpeta
+    build: .
+    ports:
+      # Expone el puerto de tu API a tu PC
+      - "3001:3001"
+    restart: always
+    environment:
+      # Le pasamos las variables de tu .env a la API
+      PORT: 3001
+      DB_HOST: db # <-- ¡LA CLAVE! Habla con la DB usando su nombre de servicio
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE}
+      JWT_SECRET: ${JWT_SECRET}
+    networks:
+      # Lo conectamos a la misma red
+      - microservicios-net
+    depends_on:
+      # Le dice a Docker que espere a que la DB esté lista
+      # antes de arrancar la API.
+      - db
+
+# --- Definiciones de Redes y Volúmenes ---
+
+# Definimos el "volumen" (almacenamiento) que usamos arriba
+volumes:
+  wallet-data:
+
+# Le decimos a Docker que "microservicios-net"
+# es una red externa que ya existe
+networks:
+  microservicios-net:
+    external: true

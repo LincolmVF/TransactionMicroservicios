@@ -1,0 +1,26 @@
+# --- Dependencias de Node.js ---
+/node_modules
+
+# --- Archivos de Entorno ---
+.env
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-error.log
+
+# --- Archivos del Sistema Operativo ---
+.DS_Store
+
+# Archivos basura de Windows
+Thumbs.db
+
+# --- Carpetas de IDE (Visual Studio Code) ---
+# Ignora la configuración local de tu editor
+.vscode/
+
+# --- Datos de Docker ---
+# Si decides guardar los datos de tu volumen de MariaDB
+# localmente en una carpeta (en lugar de un volumen nombrado),
+# descomenta la línea de abajo.
+# wallet-data/
