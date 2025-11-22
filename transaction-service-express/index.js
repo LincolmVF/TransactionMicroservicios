@@ -13,10 +13,12 @@ app.use(express.json()); // Middleware para entender JSON
 
 // --- 2. Cargar las Rutas ---
 const transactionRoutes = require('./routes/transaction.routes');
+const externalRoutes = require("./routes/external.routes");
 
 // Le decimos a Express que use ese archivo de rutas
 // para todas las URLs que empiecen con '/transactions'
 app.use('/transactions', transactionRoutes);
+app.use("/api/external", externalRoutes);
 
 // --- 3. Iniciar Servidor ---
 const PORT = process.env.PORT || 3002;
