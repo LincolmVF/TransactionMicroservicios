@@ -1,0 +1,213 @@
+/* sidebar.css */
+:root {
+  --sidebar-width: 250px;
+  --bg-color: #ffffff;
+  --border-color: #e2e8f0;
+  --primary-color: #4f46e5;
+}
+
+/* =========================================================
+   🖥️ ESCRITORIO: SIDEBAR FIJO A LA IZQUIERDA
+   ========================================================= */
+.sidebar-container {
+  /* CLAVE: position fixed asegura que siempre se vea en la ventana */
+  position: fixed; 
+  top: 0;
+  left: 0;
+  bottom: 0; /* Se ancla arriba y abajo */
+  
+  width: var(--sidebar-width);
+  background-color: var(--bg-color);
+  border-right: 1px solid var(--border-color);
+  
+  /* Flexbox vertical para distribuir espacio */
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* Empuja el footer al fondo */
+  
+  padding: 1.5rem;
+  box-sizing: border-box; /* Evita que el padding rompa el tamaño */
+  z-index: 1000;
+}
+
+/* --- HEADER (Logo) --- */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  /* Reduje un poco el margen para pantallas pequeñas */
+  margin-bottom: 2rem; 
+  flex-shrink: 0; /* Evita que el logo se aplaste */
+}
+
+.sidebar-logo-img {
+  width: 28px;
+  height: 28px;
+}
+
+.sidebar-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* --- NAV (El menú del medio) --- */
+.sidebar-nav {
+  flex: 1; /* Ocupa todo el espacio sobrante */
+  display: flex;
+  flex-direction: column;
+  
+  /* Si la pantalla es enana, solo esta parte hace scroll */
+  overflow-y: auto; 
+  margin-bottom: 1rem;
+}
+
+.nav-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  text-decoration: none;
+  color: #64748b;
+  font-weight: 600;
+  border-radius: 10px;
+  transition: all 0.2s;
+}
+
+.nav-item.active .nav-link {
+  background-color: #eff6ff;
+  color: var(--primary-color);
+}
+
+.nav-item:hover .nav-link {
+  background-color: #f8fafc;
+  color: #1e293b;
+}
+
+/* --- FOOTER (Salir) --- */
+.sidebar-footer {
+  /* Evita que se aplaste */
+  flex-shrink: 0; 
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.btn-logout {
+  width: 100%;
+  padding: 0.8rem;
+  background-color: #fef2f2; /* Rojo muy suave */
+  color: #ef4444; /* Rojo texto */
+  border: 1px solid #fee2e2;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-logout:hover {
+  background-color: #fee2e2;
+}
+
+/* =========================================================
+   📱 MÓVIL: BARRA INFERIOR (Bottom Bar)
+   ========================================================= */
+@media (max-width: 768px) {
+  .sidebar-container {
+    position: fixed;
+    top: auto; /* Soltamos arriba */
+    bottom: 0; /* Pegado abajo */
+    left: 0;
+    width: 100%;
+    height: 70px; /* Altura fija para móvil */
+    
+    border-right: none;
+    border-top: 1px solid var(--border-color);
+    flex-direction: row; /* Elementos en fila */
+    padding: 0;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.05);
+  }
+
+  .sidebar-header, 
+  .sidebar-footer {
+    display: none; /* Ocultamos logo y salir en el menú rápido */
+  }
+
+  .sidebar-nav {
+    margin-bottom: 0;
+    overflow: visible;
+  }
+
+  .nav-list {
+    flex-direction: row;
+    height: 100%;
+    justify-content: space-around;
+    align-items: center;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+  }
+
+  .nav-link {
+    flex-direction: column;
+    gap: 2px;
+    padding: 0.5rem;
+    font-size: 0.7rem;
+    background: transparent !important;
+  }
+  
+  .icon {
+    font-size: 1.4rem;
+    margin-bottom: 2px;
+  }
+
+  /* sidebar.css */
+
+/* ... (tus estilos anteriores) ... */
+
+/* 1. POR DEFECTO (PC): Ocultamos el item "mobile-only" */
+.mobile-only {
+  display: none;
+}
+
+/* 2. EN MÓVIL: Hacemos la magia */
+@media (max-width: 768px) {
+  
+  /* Mostramos el botón de salir en la barra */
+  .mobile-only {
+    display: flex; /* O block */
+    flex: 1;       /* Para que ocupe el mismo ancho que los otros */
+    justify-content: center;
+  }
+  
+  /* Aseguramos que el footer de escritorio siga oculto */
+  .sidebar-footer {
+    display: none;
+  }
+
+  /* Ajuste visual para el icono de salir en móvil (rojo opcional) */
+  .mobile-only .icon {
+    color: #ef4444; 
+  }
+  
+  .mobile-only span {
+    color: #ef4444;
+  }
+}
+}

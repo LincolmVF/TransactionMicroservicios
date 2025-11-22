@@ -1,0 +1,201 @@
+/* billetera.css */
+
+:root {
+  --sidebar-width: 250px;
+  --bg-body: #f7f9fc;
+}
+
+/* 1. LAYOUT PRINCIPAL */
+.app-layout {
+  min-height: 100vh;
+  background-color: var(--bg-body);
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  /* Quitamos display: flex porque el sidebar es fixed */
+  display: block; 
+}
+
+/* 2. ÁREA DE CONTENIDO (El arreglo) */
+.main-content-area {
+  /* DEJA EL HUECO PARA EL SIDEBAR */
+  margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  
+  /* EMPUJA EL CONTENIDO HACIA ABAJO */
+  padding-top: 5rem; /* Antes tenías 30px, muy poco */
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-bottom: 2rem;
+  
+  box-sizing: border-box;
+}
+
+.billetera-container {
+  width: 100%;
+  max-width: 1000px; /* Un poco más contenido para que no se estire tanto */
+  margin: 0 auto;
+}
+
+/* ------------------------------------ */
+/* 3. BLOQUE: TARJETAS DE RESUMEN (GRID) */
+/* ------------------------------------ */
+.summary-grid {
+  display: grid;
+  /* Ajuste para que se vea mejor en pantallas anchas */
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.summary-card {
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  background-color: white;
+}
+
+/* Estilos específicos de tarjeta */
+.savings-card {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  border-left: 5px solid #2563eb;
+}
+
+.card-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.card-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.card-subtitle {
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin-top: 0.5rem;
+}
+
+/* ------------------------------------ */
+/* 4. HISTORIAL DE TRANSACCIONES */
+/* ------------------------------------ */
+.transactions-history-card {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+}
+
+.history-header {
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 1rem;
+}
+
+.history-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+}
+
+/* TABLA */
+.tabla-transacciones {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tabla-transacciones th {
+  text-align: left;
+  padding: 1rem;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.tabla-transacciones td {
+  padding: 1rem;
+  vertical-align: middle;
+  border-bottom: 1px solid #f8fafc;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
+.tabla-transacciones tr:last-child td {
+  border-bottom: none;
+}
+
+/* DETALLES TXN */
+.txn-description-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.txn-description-text {
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* MONTOS */
+.text-right { text-align: right; }
+
+.positivo {
+  color: #16a34a; /* Verde moderno */
+  font-weight: 700;
+  background-color: #dcfce7;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  display: inline-block;
+}
+
+.negativo {
+  color: #1e293b;
+  font-weight: 600;
+}
+
+.no-transactions-message {
+  text-align: center;
+  padding: 3rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* ------------------------------------ */
+/* 5. MÓVIL (EL FIX IMPORTANTE) */
+/* ------------------------------------ */
+@media (max-width: 768px) {
+  .main-content-area {
+    /* En móvil quitamos el margen izquierdo porque el sidebar desaparece/cambia */
+    margin-left: 0;
+    width: 100%;
+    
+    /* Padding superior suficiente para que no choque */
+    padding-top: 2rem; 
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 6rem; /* Espacio abajo para la barra móvil */
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Ocultar columnas secundarias en móvil para que quepa la tabla */
+  .tabla-transacciones th:nth-child(2), 
+  .tabla-transacciones td:nth-child(2),
+  .tabla-transacciones th:nth-child(3), 
+  .tabla-transacciones td:nth-child(3) {
+    display: none;
+  }
+}

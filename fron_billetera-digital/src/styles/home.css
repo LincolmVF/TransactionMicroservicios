@@ -1,0 +1,193 @@
+:root {
+  --bg-body: #f1f5f9;
+  --card-bg: #ffffff;
+  --primary-blue: #2563eb;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --sidebar-width: 250px;
+}
+
+/* 1. LAYOUT GENERAL */
+.app-layout {
+  min-height: 100vh;
+  background-color: var(--bg-body);
+  font-family: 'Segoe UI', Roboto, sans-serif;
+  display: block;
+}
+
+/* 2. ÁREA DE CONTENIDO */
+.content-area {
+  margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  
+  /* CAMBIO: Aumenté de 4rem a 6rem para escritorio */
+  padding-top: 6rem; 
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-bottom: 2rem;
+  
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Contenedor del Feed */
+.feed-container {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-bottom: 1rem;
+}
+
+/* Header */
+.dashboard-header {
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-header h2 {
+  color: var(--text-main);
+  font-size: 1.8rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.dashboard-header p {
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* TARJETAS */
+.pro-card {
+  background-color: var(--card-bg);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-card);
+  border: 1px solid #e2e8f0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+/* PROMO BEMBOS */
+.promo-banner {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.promo-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.promo-content h3 {
+  margin: 0 0 0.5rem 0;
+  color: #b91c1c;
+  font-size: 1.4rem;
+}
+
+.promo-badge {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+}
+
+.btn-promo {
+  margin-top: 1rem;
+  background-color: #b91c1c;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* SEGURIDAD */
+.security-tip {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.icon-box {
+  background-color: #eff6ff;
+  color: var(--primary-blue);
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+/* LISTA DE NOVEDADES */
+.update-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.update-row:last-child {
+  border-bottom: none;
+}
+
+.date-badge {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* --- MÓVIL --- */
+@media (max-width: 768px) {
+  .content-area {
+    margin-left: 0;
+    width: 100%;
+    
+    /* CAMBIO CRÍTICO: Antes tenías 1rem, ahora 5rem */
+    /* Esto asegura que el texto no choque con el borde superior en móvil */
+    padding-top: 5rem; 
+    
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-bottom: 100px;
+  }
+
+  .promo-banner {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .promo-img {
+    margin-bottom: 1rem;
+  }
+}

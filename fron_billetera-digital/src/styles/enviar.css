@@ -1,0 +1,273 @@
+/* enviar.css */
+:root {
+  --primary-color: #4f46e5; /* Azul Fintech moderno */
+  --primary-hover: #4338ca;
+  --accent-color: #10b981; /* Verde éxito */
+  --bg-color: #f8fafc;      /* Fondo gris muy suave */
+  --text-dark: #1e293b;
+  --text-gray: #64748b;
+  --border-radius: 16px;
+  --shadow-card: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+/* Layout General */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  background-color: var(--bg-color);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.content-area {
+  flex: 1;
+  display: flex;
+  align-items: center; /* Centrado vertical */
+  justify-content: center; /* Centrado horizontal */
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+/* La Tarjeta Principal */
+.card-transferencia {
+  background: white;
+  width: 100%;
+  max-width: 450px; /* Ancho tipo App Móvil */
+  padding: 2.5rem;
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.3s ease;
+  animation: fadeInUp 0.5s ease-out;
+}
+
+/* Header */
+.card-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.card-header h2 {
+  color: var(--text-dark);
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sub-title {
+  color: var(--text-gray);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+/* Formularios e Inputs */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-gray);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Input de Teléfono Estilizado */
+.input-with-status {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-modern {
+  width: 100%;
+  padding: 1rem 1rem 1rem 3rem; /* Espacio para el icono izquierdo si quisieras poner uno */
+  font-size: 1.1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  background-color: #f8fafc;
+  color: var(--text-dark);
+  transition: all 0.2s;
+  outline: none;
+}
+
+.input-modern:focus {
+  border-color: var(--primary-color);
+  background-color: white;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+}
+
+.input-error {
+  border-color: #ef4444 !important;
+}
+
+/* Icono de estado (Spinner / Check) */
+.status-icon {
+  position: absolute;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Input de Dinero (Hero Input) */
+.currency-input-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 0.5rem;
+  transition: border-color 0.3s;
+}
+
+.currency-input-wrapper:focus-within {
+  border-bottom-color: var(--primary-color);
+}
+
+.currency-symbol {
+  font-size: 2.5rem;
+  font-weight: 300;
+  color: var(--text-gray);
+  margin-right: 0.5rem;
+}
+
+.amount-hero {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 3rem; /* Texto gigante para el dinero */
+  font-weight: 700;
+  color: var(--text-dark);
+  text-align: center;
+  outline: none;
+  font-family: monospace; /* Para alinear números */
+}
+
+.amount-hero::placeholder {
+  color: #cbd5e1;
+}
+
+/* Mensajes de Error y Info */
+.error-text {
+  color: #ef4444;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.destinatario-badge {
+  margin-top: 0.5rem;
+  background-color: #eff6ff;
+  color: var(--primary-color);
+  padding: 0.5rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.3s;
+}
+
+/* Botones */
+.btn-primary {
+  margin-top: 1rem;
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+  color: white;
+  padding: 1rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  width: 100%;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -10px var(--primary-color);
+}
+
+.btn-primary:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Pantalla de Éxito */
+.success-view {
+  text-align: center;
+  padding: 1rem 0;
+  animation: zoomIn 0.4s ease-out;
+}
+
+.success-icon-large {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: bounce 1s infinite;
+}
+
+.amount-display {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin: 0.5rem 0;
+}
+
+.receiver-display {
+  color: var(--text-gray);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.btn-secondary {
+  background: transparent;
+  border: 2px solid var(--primary-color);
+  color: var(--primary-color);
+  padding: 0.8rem 1.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.btn-secondary:hover {
+  background: #eff6ff;
+}
+
+/* Animaciones y Spinners */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes zoomIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.spinner-small {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(79, 70, 229, 0.3);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

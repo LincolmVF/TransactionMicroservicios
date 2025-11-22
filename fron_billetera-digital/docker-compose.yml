@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  frontend-react:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: billetera-frontend
+    ports:
+      - "4000:3000"
+    volumes:
+      # --- CORRECCIÓN AQUÍ ---
+      # Antes tenías: - ./fron_billetera-digital/src:/app/src
+      # Ahora debe ser:
+      - ./src:/app/src
+      - ./public:/app/public
+      
+      # Node modules intocable
+      - /app/node_modules
+    environment:
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - WDS_SOCKET_PORT=0
+    stdin_open: true
+    tty: true
+    networks:
+      - microservicios-net
+
+networks:
+  microservicios-net:
+    external: true

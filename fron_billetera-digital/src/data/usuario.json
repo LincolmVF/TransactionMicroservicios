@@ -1,0 +1,23 @@
+{
+  "usuario": {
+    "id": "usr-001",
+    "nombre": "Juan Pérez",
+    "email": "juan@email.com",
+    "telefono": "3001234567",
+    "dni": "12345678",
+    "password": "12345678",
+    "billetera": {
+      "saldo": 5420.5,
+      "gastosMes": 489.99,
+      "ingresosMes": 1500.0,
+      "tarjetasActivas": 2,
+      "transacciones": [ 
+        {"descripcion": "Transferencia a Juan", "contacto": "+34 650 123 456", "fecha": "14 Nov 2024", "monto": -250.00 },
+        {"descripcion": "Recarga de saldo", "contacto": "Sistema", "fecha": "13 Nov 2024", "monto": 1000.00 },
+        {"descripcion": "Compra en Amazon", "contacto": "Amazon", "fecha": "12 Nov 2024", "monto": -89.99 },
+        {"descripcion": "Pago de servicios", "contacto": "Servicios", "fecha": "11 Nov 2024", "monto": -150.00 },
+        {"descripcion": "Transferencia de Maria", "contacto": "+34 650 789 012", "fecha": "10 Nov 2024", "monto": 500.00 }
+      ]
+    }
+  }
+}
