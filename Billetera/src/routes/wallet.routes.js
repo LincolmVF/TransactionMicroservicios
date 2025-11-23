@@ -47,4 +47,6 @@ router.post("/compensate", checkJwt, walletController.compensateWallet);
 
 router.get('/:walletId', checkJwt, walletController.getWalletDetails);
 
+router.get('/:walletId/ledger-enriched', checkJwt, walletController.getEnrichedWalletLedger);
+
 module.exports = router;
