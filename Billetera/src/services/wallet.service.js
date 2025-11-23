@@ -479,29 +479,25 @@ const getLedgerWithDetails = async (walletId) => {
   try {
     conn = await pool.getConnection();
 
-    // 1. Obtener Transacciones (Igual que getLedgerByWalletId)
+    // 1. Obtener Transacciones
     const sqlTx = "SELECT * FROM Ledger WHERE wallet_id = ? ORDER BY created_at DESC";
     const transactions = await conn.query(sqlTx, [walletId]);
 
     if (transactions.length === 0) return [];
 
-    // 2. Extraer IDs de las contrapartes (Wallets)
-    // Filtramos nulos y quitamos duplicados
+    // 2. Extraer IDs de las contrapartes
     const counterpartyWalletIds = [...new Set(
       transactions
         .map(tx => tx.counterparty_id)
         .filter(id => id !== null && id !== undefined)
     )];
 
-    // Si todas son operaciones internas (sin contraparte), devolvemos ya
     if (counterpartyWalletIds.length === 0) return transactions;
 
-    // 3. Traducir WalletID -> UserID (Consulta local a tu DB)
-    // Truco SQL: Para usar IN (?) con mysql2, pasamos el array directamente
+    // 3. Traducir WalletID -> UserID
     const sqlWallets = "SELECT wallet_id, user_id FROM Wallets WHERE wallet_id IN (?)";
     const walletsInfo = await conn.query(sqlWallets, [counterpartyWalletIds]);
 
-    // Mapa: WalletID -> UserID
     const walletToUserMap = {};
     const userIdsToFetch = [];
 
@@ -510,23 +506,38 @@ const getLedgerWithDetails = async (walletId) => {
       if(w.user_id) userIdsToFetch.push(w.user_id);
     });
 
-    // 4. Llamar al User Service (El paso mágico 🚀)
+    // 👇👇👇 ZONA DE LOGS (MODO DETECTIVE) 👇👇👇
+    console.log("--- DEBUGGING LEDGER ENRICHED ---");
+    console.log("Wallet ID consultada:", walletId);
+    console.log("IDs de Wallets Contraparte encontradas:", counterpartyWalletIds);
+    console.log("IDs de Usuarios dueños de esas Wallets:", userIdsToFetch);
+    // 👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆
+
+    // 4. Llamar al User Service
     let usersData = [];
     try {
-        // OJO: Asegúrate que esta URL sea accesible desde Railway
+        // Log antes de llamar
+        console.log("Llamando a User Service con IDs:", userIdsToFetch);
+
         const response = await axios.post('https://userservicesanti.onrender.com/users/batch-info', { 
             userIds: userIdsToFetch 
         });
         usersData = response.data;
+        
+        // Log de lo que respondió Render
+        console.log("Respuesta de Render (User Service):", JSON.stringify(usersData, null, 2));
+
     } catch (error) {
-        console.error("Error conectando con User Service:", error.message);
-        // No lanzamos error, seguimos para no romper la app, solo saldrán "Desconocidos"
+        console.error("❌ Error conectando con User Service:", error.message);
+        if (error.response) {
+            console.error("Detalle del error:", error.response.data);
+            console.error("Status:", error.response.status);
+        }
     }
 
-    // Mapa: UserID -> Datos { fullname, phone }
+    // Mapa: UserID -> Datos
     const userDetailsMap = {};
     usersData.forEach(u => {
-        // Ajustamos a la estructura que devuelve tu User Service
         if (u.user && u.user.user_id) {
             userDetailsMap[u.user.user_id] = {
                 fullname: u.fullname,
@@ -535,15 +546,14 @@ const getLedgerWithDetails = async (walletId) => {
         }
     });
 
-    // 5. Mezclar todo (Enrichment)
+    // 5. Mezclar todo
     const enrichedTransactions = transactions.map(tx => {
         const walletContraparte = tx.counterparty_id;
         const userIdContraparte = walletToUserMap[walletContraparte];
         const detalles = userDetailsMap[userIdContraparte];
 
         return {
-            ...tx, // Copiamos datos originales de la transacción
-            // Inyectamos la info extra
+            ...tx,
             counterparty_details: detalles || { fullname: 'Usuario Externo / Desconocido', phone: '---' }
         };
     });
