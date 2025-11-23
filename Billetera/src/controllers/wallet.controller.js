@@ -20,7 +20,7 @@ const createWallet = async (req, res) => {
 
   // **Punto Clave 1: Obtener datos del Request**
   // Sacamos el 'userId' que nos enviaron en el body JSON
-  const { userId } = req.body;
+  const { userId, phone, userName } = req.body;
 
   // Validación de entrada simple
   if (!userId) {
@@ -33,6 +33,30 @@ const createWallet = async (req, res) => {
     // **Punto Clave:** Añadimos 'await'
     // para esperar a que la base de datos responda
     const newWallet = await walletService.create(userId);
+
+
+    try {
+        const centralApiURL = "http://localhost:3000/api/v1/register-wallet"; // Cambiar ruta
+
+        const payload = {
+            userIdentifier: phone,       
+            internalWalletId: newWallet.wallet_id,       
+            userName: userName,          
+            appName: "LUCA"      
+        };
+
+        await axios.post(centralApiURL, payload, {
+            headers: {
+            "Content-Type": "application/json",
+            "x-wallet-token": "luca-token"
+            }
+        });
+
+        console.log("Billetera creada en API central");
+    } catch (err) {
+        console.error("Error enviando a Api central:", err.message);
+
+    }
 
     // **Punto Clave 3: Enviar Respuesta Exitosa**
     // Si todo sale bien, respondemos 201 (Created)
@@ -90,6 +114,8 @@ const getWalletDetails = async (req, res) => {
   try {
     // Llamamos al servicio que ya tienes creado
     const wallet = await walletService.getWalletById(idAsNumber);
+
+    
 
     // Devolvemos la wallet completa (incluye user_id)
     res.status(200).json(wallet);
