@@ -4,6 +4,7 @@
 // Ya no necesitamos los mocks, ahora importamos el "pool"
 // que creamos en 'db.js'.
 const { pool } = require("../config/db");
+const axios = require('axios'); // <--- ¡FALTA ESTA LÍNEA! AGREGALA AQUÍ
 
 // --- 2. Lógica de Negocio (El Servicio) ---
 
