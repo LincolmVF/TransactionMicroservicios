@@ -18,15 +18,12 @@ app.use(express.json());
 
 // Importamos el "mapa" de las rutas de wallet
 const walletRoutes = require("./routes/wallet.routes");
-const walletRoutesExternal = require("./routes/wallet.routesExternal");
 
 // Le decimos a Express que use ese mapa.
 // **Punto Clave:** Todo lo definido en 'walletRoutes'
 // ahora tendrá el prefijo '/api/v1/wallets'
 // Por ej: '/create' en el router se volverá '/api/v1/wallets/create'
 app.use("/api/v1/wallets", walletRoutes);
-
-app.use("/api/v1/walletsExternal", walletRoutesExternal);
 
 // --- 3. Ruta de Prueba (Health Check) ---
 // Una ruta simple para saber si el servidor está vivo.
