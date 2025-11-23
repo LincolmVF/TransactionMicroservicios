@@ -29,8 +29,8 @@ router.get("/:userId/balance", checkJwt, walletController.getWalletBalance);
 // RF3: Ejecutar Crédito
 // Será llamado por el Transaction Service (RF8)
 // URL Completa: POST /api/v1/wallets/credit
-router.post("/credit", checkJwt, walletController.creditWallet);
-router.post("/credit/external", checkExternal, walletController.creditWallet);
+//router.post("/credit", checkJwt, walletController.creditWallet);
+router.post("/credit-external", checkExternal, walletController.creditWallet);
 
 // RF4: Ejecutar Débito
 // Será llamado por el Transaction Service (RF8)
