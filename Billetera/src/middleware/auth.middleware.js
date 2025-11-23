@@ -39,4 +39,24 @@ const checkJwt = (req, res, next) => {
     }
 };
 
-module.exports = { checkJwt };
+const checkExternal = (req, res, next) => {
+    const HEADER_NAME = 'x-wallet-token';
+    const EXPECTED_VALUE = 'luca-token';
+
+    const receivedKey = req.headers[HEADER_NAME];
+
+    if (!receivedKey) {
+        return res.status(401).json({ message: `Acceso denegado. Falta el header: ${HEADER_NAME}` });
+    }
+
+    if (receivedKey !== EXPECTED_VALUE) {
+        return res
+            .status(403)
+            .json({ message: 'Acceso prohibido. Token incorrecto.' });
+    }
+
+    console.log("✅ Acceso autorizado.");
+    next();
+};
+
+module.exports = { checkJwt, checkExternal };

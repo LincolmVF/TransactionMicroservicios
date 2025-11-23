@@ -102,23 +102,10 @@ const getWalletDetails = async (req, res) => {
   }
 };
 
-// --- (Controlador de Crédito) ---
+
 const creditWallet = async (req, res) => {
 
-  // // El payload del token está en req.user
-  // const { role } = req.user;
-
-  // // Solo permitimos que el "Transaction Service" nos debite
-  // // (Auth Service le da el rol 'service')
-  // if (role !== 'service') {
-  //   return res.status(403).json({ error: 'Prohibido: No tienes permisos de servicio' });
-  // }
-
-  // **Punto Clave 1: Obtener datos del Request**
-  // El Transaction Service nos enviará esto en el body (RF8)
   const { walletId, amount, externalTransactionId, counterpartyId, currency } = req.body;
-
-  // Convertimos a número para asegurar
   const numericAmount = parseFloat(amount);
   const numericWalletId = parseInt(walletId, 10);
 
@@ -126,7 +113,7 @@ const creditWallet = async (req, res) => {
     !numericWalletId ||
     !numericAmount ||
     !externalTransactionId ||
-        numericAmount <= 0
+    numericAmount <= 0
   ) {
     return res.status(400).json({
       error:
@@ -135,7 +122,6 @@ const creditWallet = async (req, res) => {
   }
 
   try {
-    // **Punto Clave:** Añadimos 'await'
     const updatedWallet = await walletService.credit(
       numericWalletId,
       numericAmount,
@@ -152,17 +138,7 @@ const creditWallet = async (req, res) => {
   }
 };
 
-// --- (Controlador de Débito) ---
 const debitWallet = async (req, res) => {
-
-  // // El payload del token está en req.user
-  // const { role } = req.user;
-
-  // // Solo permitimos que el "Transaction Service" nos debite
-  // // (Auth Service le da el rol 'service')
-  // if (role !== 'service') {
-  //   return res.status(403).json({ error: 'Prohibido: No tienes permisos de servicio' });
-  // }
 
   const { walletId, amount, externalTransactionId, counterpartyId, currency } = req.body;
 
@@ -182,7 +158,6 @@ const debitWallet = async (req, res) => {
   }
 
   try {
-    // **Punto Clave:** Añadimos 'await'
     const updatedWallet = await walletService.debit(
       numericWalletId,
       numericAmount,
@@ -192,7 +167,6 @@ const debitWallet = async (req, res) => {
     );
     res.status(200).json(updatedWallet);
   } catch (error) {
-    // **Punto Clave:** Manejar error de RF5
     if (error.code === "INSUFFICIENT_FUNDS") {
       return res.status(409).json({ error: error.message }); // 409 Conflict
     }
@@ -304,7 +278,7 @@ const compensateWallet = async (req, res) => {
 const getEnrichedWalletLedger = async (req, res) => {
   const { walletId } = req.params;
   const idAsNumber = parseInt(walletId, 10);
-  
+
   // Seguridad básica: Verificar token
   const { userId: userIdFromToken, role } = req.user;
 
