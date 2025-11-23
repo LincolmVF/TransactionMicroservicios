@@ -298,6 +298,41 @@ const compensateWallet = async (req, res) => {
   }
 };
 
+/**
+ * Nuevo Endpoint: Obtiene ledger con nombres de usuarios
+ */
+const getEnrichedWalletLedger = async (req, res) => {
+  const { walletId } = req.params;
+  const idAsNumber = parseInt(walletId, 10);
+  
+  // Seguridad básica: Verificar token
+  const { userId: userIdFromToken, role } = req.user;
+
+  if (isNaN(idAsNumber)) {
+    return res.status(400).json({ error: "El walletId debe ser numérico." });
+  }
+
+  try {
+    // Verificación de dueño
+    if (role === 'user') {
+      const wallet = await walletService.getWalletById(idAsNumber);
+      if (wallet.user_id !== userIdFromToken) {
+        return res.status(403).json({ error: 'Prohibido: No es tu billetera.' });
+      }
+    }
+
+    // Llamamos a la nueva función del servicio
+    const movements = await walletService.getLedgerWithDetails(idAsNumber);
+    res.status(200).json(movements);
+
+  } catch (error) {
+    if (error.message.includes("no encontrada")) {
+      return res.status(404).json({ error: error.message });
+    }
+    res.status(500).json({ error: error.message });
+  }
+}; // <--- Solo UNA llave y punto y coma aquí.
+
 module.exports = {
   createWallet,
   getWalletBalance,
@@ -305,5 +340,6 @@ module.exports = {
   debitWallet,
   getWalletLedger,
   compensateWallet,
-  getWalletDetails
+  getEnrichedWalletLedger,
+  getWalletDetails,
 };
