@@ -38,6 +38,13 @@ const createWallet = async (req, res) => {
     try {
         const centralApiURL = "https://centralized-wallet-api-production.up.railway.app/api/v1/register-wallet"; // Cambiar ruta
 
+        const authHeader = req.headers.authorization; // 'Bearer eyJ...'
+
+        let incomingToken = null;
+        if (authHeader && authHeader.startsWith("Bearer ")) {
+        incomingToken = authHeader.split(" ")[1]; // <-- El token limpio
+        }
+
         const payload = {
             userIdentifier: phone,       
             internalWalletId: newWallet.wallet_id,       
@@ -48,7 +55,8 @@ const createWallet = async (req, res) => {
         await axios.post(centralApiURL, payload, {
             headers: {
             "Content-Type": "application/json",
-            "x-wallet-token": "luca-token"
+            "x-wallet-token": "luca-token",
+            "Authorization": `Bearer ${incomingToken}`
             }
         });
 
