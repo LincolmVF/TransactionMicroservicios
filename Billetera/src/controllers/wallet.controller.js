@@ -36,7 +36,7 @@ const createWallet = async (req, res) => {
 
 
     try {
-        const centralApiURL = "http://localhost:3000/api/v1/register-wallet"; // Cambiar ruta
+        const centralApiURL = "https://centralized-wallet-api-production.up.railway.app/api/v1/register-wallet"; // Cambiar ruta
 
         const payload = {
             userIdentifier: phone,       
