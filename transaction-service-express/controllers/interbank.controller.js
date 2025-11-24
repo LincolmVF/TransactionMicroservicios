@@ -1,29 +1,21 @@
-// controllers/interbank.controller.js
-const dbPool = require("../config/db"); // Tu conexión a BD
+const dbPool = require("../config/db"); 
 const http = require("axios");
 
 // URLs de servicios
 const CENTRAL_API_URL = "https://centralized-wallet-api-production.up.railway.app/api/v1";
-const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL || "http://localhost:3002"; // Ajusta tu puerto
+const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL || "https://billetera-production.up.railway.app/api/v1/wallets"; // Ajusta si es necesario
 
-/**
- * Orquestador de Transferencias Interbancarias
- * 1. Llama a la API Central para enviar el dinero.
- * 2. Si es exitoso, debita la billetera local.
- * 3. Guarda el registro en la BD local.
- */
 exports.sendInterbankTransfer = async (req, res) => {
   const { 
-    idempotencyKey, 
-    sender_wallet, // ID numérico de la billetera local (ej: 5)
-    my_phone,      // Tu celular (ej: "999344881")
-    target_phone,  // Celular destino
-    target_app,    // Banco destino (ej: "PIXEL MONEY")
+    idempotencyKey, // Este es el ID único que genera el frontend (ej: TX-171...)
+    sender_wallet, 
+    my_phone,      
+    target_phone,  
+    target_app,    
     amount, 
     currency 
   } = req.body;
 
-  // 1. Validar Token
   const tokenDelFront = req.headers.authorization;
   if (!tokenDelFront) {
     return res.status(401).json({ error: "No autorizado. Falta token." });
@@ -51,15 +43,18 @@ exports.sendInterbankTransfer = async (req, res) => {
     // --- PASO A: LLAMAR A LA API CENTRAL ---
     console.log(`[INTERBANK] Solicitando envío a ${target_app}...`);
     
-    // Nota: La API Central espera "fromIdentifier", "toIdentifier", etc.
+    // 👇 CORRECCIÓN: Agregamos externalTransactionId
+    const payloadCentral = {
+        fromIdentifier: my_phone,
+        toIdentifier: target_phone,
+        toAppName: target_app,
+        amount: parseFloat(amount),
+        externalTransactionId: idempotencyKey // <--- ¡ESTO FALTABA!
+    };
+
     const responseCentral = await http.post(
         `${CENTRAL_API_URL}/sendTransfer`, 
-        {
-            fromIdentifier: my_phone,
-            toIdentifier: target_phone,
-            toAppName: target_app,
-            amount: parseFloat(amount)
-        }, 
+        payloadCentral, 
         configCentral
     );
 
@@ -67,8 +62,6 @@ exports.sendInterbankTransfer = async (req, res) => {
     console.log("[INTERBANK] API Central respondió OK:", dataCentral);
 
     // --- PASO B: PREPARAR DATOS PARA DÉBITO LOCAL ---
-    // Armamos el string que se guardará en la BD para que el frontend muestre el nombre
-    // Ej: "Ever Ccencho (PIXEL MONEY)"
     const nombreDestino = dataCentral.data?.userName || "Usuario Externo";
     const bancoDestino = dataCentral.data?.toAppName || target_app;
     const counterpartyString = `${nombreDestino} (${bancoDestino})`; 
@@ -83,30 +76,25 @@ exports.sendInterbankTransfer = async (req, res) => {
         amount: amount,
         currency: currency || "SOL",
         externalTransactionId: externalTxId,
-        counterpartyId: counterpartyString // <--- Aquí mandamos el texto
+        counterpartyId: counterpartyString 
     }, configWallet);
 
     console.log("[INTERBANK] Débito local exitoso.");
 
-    // --- PASO D: GUARDAR EN BASE DE DATOS (Transaction & Ledger) ---
+    // --- PASO D: GUARDAR EN BASE DE DATOS ---
     dbConnection = await dbPool.getConnection();
     await dbConnection.beginTransaction();
 
-    // 1. Insertar en Transaction (Como 'completed' porque ya se hizo todo)
-    // Usamos receiver_wallet = 0 o NULL para indicar que es externo
     const [txResult] = await dbConnection.execute(
       "INSERT INTO Transaction (sender_wallet, receiver_wallet, amount, currency, status, type) VALUES (?, ?, ?, ?, ?, ?)",
       [sender_wallet, 0, amount, currency || "SOL", "completed", "EXTERNAL"] 
     );
     const transactionId = txResult.insertId;
 
-    // 2. Insertar en Ledger (Solo el débito, porque el dinero se fue)
     await dbConnection.execute(
       "INSERT INTO Ledger (transaction_id, wallet_id, amount, type, description, counterparty_id) VALUES (?, ?, ?, ?, ?, ?)",
       [transactionId, sender_wallet, amount, "debit", `Transferencia a ${target_app}`, counterpartyString]
     );
-    // OJO: En la query de arriba asegúrate que tu tabla Ledger tenga la columna 'counterparty_id' 
-    // y que soporte VARCHAR para guardar 'counterpartyString'. Si no, ponlo en description.
 
     await dbConnection.commit();
 
@@ -123,9 +111,10 @@ exports.sendInterbankTransfer = async (req, res) => {
 
   } catch (error) {
     if (dbConnection) await dbConnection.rollback();
-    console.error("❌ Error Interbank:", error.message);
     
-    // Devolver el error exacto si viene de una API
+    // Mejor log para ver qué falló
+    console.error("❌ Error Interbank:", error.response?.data || error.message);
+    
     if (error.response) {
         return res.status(error.response.status).json(error.response.data);
     }
