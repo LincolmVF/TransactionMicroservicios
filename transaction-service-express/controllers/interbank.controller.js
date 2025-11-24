@@ -69,6 +69,7 @@ exports.sendInterbankTransfer = async (req, res) => {
     // --- PASO C: DEBITAR BILLETERA LOCAL ---
     console.log(`[INTERBANK] Debitando wallet local ID ${sender_wallet}...`);
     
+    // AQUÍ es donde se guarda el nombre "Pepi Mago" para el historial del usuario
     await http.post(`${WALLET_SERVICE_URL}/api/v1/wallets/debit`, {
         walletId: sender_wallet,
         amount: amount,
@@ -79,7 +80,7 @@ exports.sendInterbankTransfer = async (req, res) => {
 
     console.log("[INTERBANK] Débito local exitoso.");
 
-    // --- PASO D: GUARDAR EN BASE DE DATOS ---
+    // --- PASO D: GUARDAR EN BASE DE DATOS (AUDITORÍA) ---
     dbConnection = await dbPool.getConnection();
     await dbConnection.beginTransaction();
 
@@ -90,11 +91,10 @@ exports.sendInterbankTransfer = async (req, res) => {
     );
     const transactionId = txResult.insertId;
 
-    // 👇 CORRECCIÓN: Eliminamos 'description' de la consulta
-    // Solo guardamos counterparty_id (que es donde irá el nombre "Ever (Pixel Money)")
+    // 👇 CORRECCIÓN FINAL: Solo insertamos las columnas que SÍ existen en tu tabla Ledger
     await dbConnection.execute(
-      "INSERT INTO Ledger (transaction_id, wallet_id, amount, type, counterparty_id) VALUES (?, ?, ?, ?, ?)",
-      [transactionId, sender_wallet, amount, "debit", counterpartyString]
+      "INSERT INTO Ledger (transaction_id, wallet_id, amount, type) VALUES (?, ?, ?, ?)",
+      [transactionId, sender_wallet, amount, "debit"]
     );
 
     await dbConnection.commit();
