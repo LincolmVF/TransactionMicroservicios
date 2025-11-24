@@ -47,7 +47,6 @@ exports.sendInterbankTransfer = async (req, res) => {
         toIdentifier: target_phone,
         toAppName: target_app,
         amount: parseFloat(amount),
-        // 👇 CAMBIO 1: Agregamos externalTransactionId para que la Central no de error 400
         externalTransactionId: idempotencyKey 
     };
 
@@ -84,18 +83,18 @@ exports.sendInterbankTransfer = async (req, res) => {
     dbConnection = await dbPool.getConnection();
     await dbConnection.beginTransaction();
 
-    // 👇 CAMBIO 2: Quitamos la columna 'type' y el valor 'EXTERNAL' de la query
-    // Tu tabla Transaction no tenía esa columna y por eso fallaba.
+    // Insertar en Transaction
     const [txResult] = await dbConnection.execute(
       "INSERT INTO Transaction (sender_wallet, receiver_wallet, amount, currency, status) VALUES (?, ?, ?, ?, ?)",
       [sender_wallet, 0, amount, currency || "SOL", "completed"] 
     );
     const transactionId = txResult.insertId;
 
-    // Insertamos en Ledger
+    // 👇 CORRECCIÓN: Eliminamos 'description' de la consulta
+    // Solo guardamos counterparty_id (que es donde irá el nombre "Ever (Pixel Money)")
     await dbConnection.execute(
-      "INSERT INTO Ledger (transaction_id, wallet_id, amount, type, description, counterparty_id) VALUES (?, ?, ?, ?, ?, ?)",
-      [transactionId, sender_wallet, amount, "debit", `Transferencia a ${target_app}`, counterpartyString]
+      "INSERT INTO Ledger (transaction_id, wallet_id, amount, type, counterparty_id) VALUES (?, ?, ?, ?, ?)",
+      [transactionId, sender_wallet, amount, "debit", counterpartyString]
     );
 
     await dbConnection.commit();
