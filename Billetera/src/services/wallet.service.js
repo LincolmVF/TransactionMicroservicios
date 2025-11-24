@@ -473,6 +473,8 @@ const compensate = async (
 };
 
 /**
+ * Obtiene el historial (Ledger) enriquecido con nombres reales.
+ * Soporta transferencias internas (Banca Luca) y externas (Interoperabilidad).
  * @param {number} walletId 
  */
 const getLedgerWithDetails = async (walletId) => {
@@ -480,82 +482,103 @@ const getLedgerWithDetails = async (walletId) => {
   try {
     conn = await pool.getConnection();
 
-    // 1. Obtener Transacciones
+    // 1. OBTENER TRANSACCIONES
     const sqlTx = "SELECT * FROM Ledger WHERE wallet_id = ? ORDER BY created_at DESC";
     const transactions = await conn.query(sqlTx, [walletId]);
 
     if (transactions.length === 0) return [];
 
-    // 2. Extraer IDs de las contrapartes
-    const counterpartyWalletIds = [...new Set(
-      transactions
-        .map(tx => tx.counterparty_id)
-        .filter(id => id !== null && id !== undefined)
-    )];
+    // 2. FILTRAR IDs: SEPARAR INTERNOS (Números) DE EXTERNOS (Texto)
+    // Solo buscaremos en la DB local los que sean números.
+    const internalWalletIds = [
+      ...new Set(
+        transactions
+          .map(tx => tx.counterparty_id)
+          .filter(id => id !== null && id !== undefined && !isNaN(id)) // !isNaN comprueba si es número
+      )
+    ];
 
-    if (counterpartyWalletIds.length === 0) return transactions;
+    // Variables para mapeo de datos
+    let walletToUserMap = {};
+    let userDetailsMap = {};
 
-    // 3. Traducir WalletID -> UserID
-    const sqlWallets = "SELECT wallet_id, user_id FROM Wallets WHERE wallet_id IN (?)";
-    const walletsInfo = await conn.query(sqlWallets, [counterpartyWalletIds]);
+    // 3. TRADUCIR WalletID -> UserID (SOLO PARA INTERNOS)
+    if (internalWalletIds.length > 0) {
+        const sqlWallets = "SELECT wallet_id, user_id FROM Wallets WHERE wallet_id IN (?)";
+        const walletsInfo = await conn.query(sqlWallets, [internalWalletIds]);
 
-    const walletToUserMap = {};
-    const userIdsToFetch = [];
-
-    walletsInfo.forEach(w => {
-      walletToUserMap[w.wallet_id] = w.user_id;
-      if(w.user_id) userIdsToFetch.push(w.user_id);
-    });
-
-    // 👇👇👇 ZONA DE LOGS (MODO DETECTIVE) 👇👇👇
-    console.log("--- DEBUGGING LEDGER ENRICHED ---");
-    console.log("Wallet ID consultada:", walletId);
-    console.log("IDs de Wallets Contraparte encontradas:", counterpartyWalletIds);
-    console.log("IDs de Usuarios dueños de esas Wallets:", userIdsToFetch);
-    // 👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆👆
-
-    // 4. Llamar al User Service
-    let usersData = [];
-    try {
-        // Log antes de llamar
-        console.log("Llamando a User Service con IDs:", userIdsToFetch);
-
-        const response = await axios.post('https://userservicesanti.onrender.com/users/batch-info', { 
-            userIds: userIdsToFetch 
+        const userIdsToFetch = [];
+        walletsInfo.forEach(w => {
+            walletToUserMap[w.wallet_id] = w.user_id;
+            if (w.user_id) userIdsToFetch.push(w.user_id);
         });
-        usersData = response.data;
-        
-        // Log de lo que respondió Render
-        console.log("Respuesta de Render (User Service):", JSON.stringify(usersData, null, 2));
 
-    } catch (error) {
-        console.error("❌ Error conectando con User Service:", error.message);
-        if (error.response) {
-            console.error("Detalle del error:", error.response.data);
-            console.error("Status:", error.response.status);
+        // 👇 LOGS DE DEBUGGING
+        console.log("--- DEBUG LEDGER ---");
+        console.log("Transacciones totales:", transactions.length);
+        console.log("IDs Internos detectados:", internalWalletIds);
+        console.log("Usuarios a buscar:", userIdsToFetch);
+
+        // 4. LLAMAR AL USER SERVICE (SOLO SI HAY USUARIOS INTERNOS)
+        if (userIdsToFetch.length > 0) {
+            try {
+                const response = await axios.post('https://userservicesanti.onrender.com/users/batch-info', { 
+                    userIds: userIdsToFetch 
+                });
+                const usersData = response.data;
+
+                // Crear mapa: UserID -> { fullname, phone }
+                usersData.forEach(u => {
+                    if (u.user && u.user.user_id) {
+                        userDetailsMap[u.user.user_id] = {
+                            fullname: u.fullname,
+                            phone: u.user.phone
+                        };
+                    }
+                });
+            } catch (error) {
+                console.error("❌ Error conectando con User Service:", error.message);
+            }
         }
     }
 
-    // Mapa: UserID -> Datos
-    const userDetailsMap = {};
-    usersData.forEach(u => {
-        if (u.user && u.user.user_id) {
-            userDetailsMap[u.user.user_id] = {
-                fullname: u.fullname,
-                phone: u.user.phone
+    // 5. MEZCLAR TODO (LÓGICA HÍBRIDA)
+    const enrichedTransactions = transactions.map(tx => {
+        const cId = tx.counterparty_id;
+        
+        // Objeto por defecto
+        let detalles = { fullname: 'Desconocido', phone: '---', appName: '---' };
+
+        // CASO A: ES UN BANCO EXTERNO (El ID es Texto, ej: "PIXEL MONEY")
+        if (isNaN(cId)) {
+            detalles = {
+                fullname: cId,        // Usamos el texto como nombre (ej: PIXEL MONEY)
+                phone: 'Externo',
+                appName: cId          // También como nombre de la App
             };
         }
-    });
-
-    // 5. Mezclar todo
-    const enrichedTransactions = transactions.map(tx => {
-        const walletContraparte = tx.counterparty_id;
-        const userIdContraparte = walletToUserMap[walletContraparte];
-        const detalles = userDetailsMap[userIdContraparte];
+        // CASO B: ES INTERNO (El ID es Número)
+        else if (walletToUserMap[cId]) {
+            const userId = walletToUserMap[cId];
+            const info = userDetailsMap[userId];
+            if (info) {
+                detalles = {
+                    fullname: info.fullname,
+                    phone: info.phone,
+                    appName: 'LUCA'
+                };
+            }
+        }
+        
+        // CASO C: OPERACIONES PROPIAS (Depósitos/Retiros donde wallet = counterparty)
+        // Nota: A veces en depósitos el counterparty es null o el mismo ID. Ajusta según tu lógica.
+        if (tx.type === 'DEPOSIT' && (!cId || cId == walletId)) {
+             detalles = { fullname: 'Recarga de Saldo', phone: 'Mí mismo', appName: 'LUCA' };
+        }
 
         return {
             ...tx,
-            counterparty_details: detalles || { fullname: 'Usuario Externo / Desconocido', phone: '---' }
+            counterparty_details: detalles
         };
     });
 
@@ -567,7 +590,6 @@ const getLedgerWithDetails = async (walletId) => {
     if (conn) conn.release();
   }
 };
-
 
 
 // Exportamos las funciones
