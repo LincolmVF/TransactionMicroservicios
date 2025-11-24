@@ -14,7 +14,7 @@ app.use(express.json()); // Middleware para entender JSON
 // --- 2. Cargar las Rutas ---
 const transactionRoutes = require('./routes/transaction.routes');
 const externalRoutes = require("./routes/external.routes");
-const interbankRoutes = require('./routes/interbank.routes'); 
+const interbankRoutes = require('./routes/external.routes'); 
 
 // Le decimos a Express que use ese archivo de rutas
 // para todas las URLs que empiecen con '/transactions'
