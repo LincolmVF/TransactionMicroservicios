@@ -3,11 +3,11 @@ const http = require("axios");
 
 // URLs de servicios
 const CENTRAL_API_URL = "https://centralized-wallet-api-production.up.railway.app/api/v1";
-const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL || "https://billetera-production.up.railway.app/api/v1/wallets"; // Ajusta si es necesario
+const WALLET_SERVICE_URL = process.env.WALLET_SERVICE_URL || "http://localhost:3002"; 
 
 exports.sendInterbankTransfer = async (req, res) => {
   const { 
-    idempotencyKey, // Este es el ID único que genera el frontend (ej: TX-171...)
+    idempotencyKey, 
     sender_wallet, 
     my_phone,      
     target_phone,  
@@ -21,7 +21,6 @@ exports.sendInterbankTransfer = async (req, res) => {
     return res.status(401).json({ error: "No autorizado. Falta token." });
   }
 
-  // Configs de Axios
   const configCentral = {
     headers: {
       'Content-Type': 'application/json',
@@ -43,13 +42,13 @@ exports.sendInterbankTransfer = async (req, res) => {
     // --- PASO A: LLAMAR A LA API CENTRAL ---
     console.log(`[INTERBANK] Solicitando envío a ${target_app}...`);
     
-    // 👇 CORRECCIÓN: Agregamos externalTransactionId
     const payloadCentral = {
         fromIdentifier: my_phone,
         toIdentifier: target_phone,
         toAppName: target_app,
         amount: parseFloat(amount),
-        externalTransactionId: idempotencyKey // <--- ¡ESTO FALTABA!
+        // 👇 CAMBIO 1: Agregamos externalTransactionId para que la Central no de error 400
+        externalTransactionId: idempotencyKey 
     };
 
     const responseCentral = await http.post(
@@ -61,7 +60,7 @@ exports.sendInterbankTransfer = async (req, res) => {
     const dataCentral = responseCentral.data; 
     console.log("[INTERBANK] API Central respondió OK:", dataCentral);
 
-    // --- PASO B: PREPARAR DATOS PARA DÉBITO LOCAL ---
+    // --- PASO B: PREPARAR DATOS ---
     const nombreDestino = dataCentral.data?.userName || "Usuario Externo";
     const bancoDestino = dataCentral.data?.toAppName || target_app;
     const counterpartyString = `${nombreDestino} (${bancoDestino})`; 
@@ -85,12 +84,15 @@ exports.sendInterbankTransfer = async (req, res) => {
     dbConnection = await dbPool.getConnection();
     await dbConnection.beginTransaction();
 
+    // 👇 CAMBIO 2: Quitamos la columna 'type' y el valor 'EXTERNAL' de la query
+    // Tu tabla Transaction no tenía esa columna y por eso fallaba.
     const [txResult] = await dbConnection.execute(
-      "INSERT INTO Transaction (sender_wallet, receiver_wallet, amount, currency, status, type) VALUES (?, ?, ?, ?, ?, ?)",
-      [sender_wallet, 0, amount, currency || "SOL", "completed", "EXTERNAL"] 
+      "INSERT INTO Transaction (sender_wallet, receiver_wallet, amount, currency, status) VALUES (?, ?, ?, ?, ?)",
+      [sender_wallet, 0, amount, currency || "SOL", "completed"] 
     );
     const transactionId = txResult.insertId;
 
+    // Insertamos en Ledger
     await dbConnection.execute(
       "INSERT INTO Ledger (transaction_id, wallet_id, amount, type, description, counterparty_id) VALUES (?, ?, ?, ?, ?, ?)",
       [transactionId, sender_wallet, amount, "debit", `Transferencia a ${target_app}`, counterpartyString]
@@ -112,7 +114,6 @@ exports.sendInterbankTransfer = async (req, res) => {
   } catch (error) {
     if (dbConnection) await dbConnection.rollback();
     
-    // Mejor log para ver qué falló
     console.error("❌ Error Interbank:", error.response?.data || error.message);
     
     if (error.response) {
