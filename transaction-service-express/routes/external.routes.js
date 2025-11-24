@@ -6,9 +6,12 @@ const externalController = require("../controllers/external.controller");
 
 // 2. Importamos el Middleware de Seguridad (El "Candado")
 const b2bAuthMiddleware = require("../middleware/b2bAuth.middleware");
-
+const interbankController = require('../controllers/interbank.controller');
 // 3. Definimos la ruta PROTEGIDA
 // La ruta final será: POST /api/external/receive
+// Ruta: POST /api/interbank/send
+router.post('/send', interbankController.sendInterbankTransfer);
+
 router.post(
     "/receive", 
     b2bAuthMiddleware, // <--- ¡AQUÍ ESTÁ LA PROTECCIÓN! Primero pasa por aquí.
